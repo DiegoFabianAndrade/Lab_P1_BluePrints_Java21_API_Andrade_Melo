@@ -1,19 +1,34 @@
 package edu.eci.arsw.blueprints.controllers;
 
+import edu.eci.arsw.blueprints.dto.ApiResponse;
+import edu.eci.arsw.blueprints.dto.NewBlueprintRequest;
 import edu.eci.arsw.blueprints.model.Blueprint;
 import edu.eci.arsw.blueprints.model.Point;
 import edu.eci.arsw.blueprints.persistence.BlueprintNotFoundException;
 import edu.eci.arsw.blueprints.persistence.BlueprintPersistenceException;
 import edu.eci.arsw.blueprints.services.BlueprintsServices;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Set;
 
+/**
+ * API REST de planos.
+ *
+ * <p>La ruta base incluye la version ({@code /api/v1}): si en el futuro cambia el
+ * contrato, puede publicarse {@code /api/v2} sin romper a los clientes existentes.</p>
+ *
+ * <p>El controlador no atrapa excepciones. Las deja propagarse hacia
+ * {@link GlobalExceptionHandler}, que las traduce a codigos HTTP y al mismo sobre
+ * {@link ApiResponse} que usan las respuestas exitosas. Asi la logica de cada
+ * endpoint queda limpia y el manejo de errores vive en un solo lugar.</p>
+ */
 @RestController
 @RequestMapping("/api/v1/blueprints")
 public class BlueprintsAPIController {
