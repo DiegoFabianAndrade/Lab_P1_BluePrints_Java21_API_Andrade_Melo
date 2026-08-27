@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -31,7 +31,6 @@ import java.util.Set;
  */
 @RestController
 @RequestMapping("/api/v1/blueprints")
-@Tag(name = "Blueprints", description = "Consulta y gestion de planos")
 public class BlueprintsAPIController {
 
     private final BlueprintsServices services;
@@ -40,60 +39,63 @@ public class BlueprintsAPIController {
         this.services = services;
     }
 
-    @Operation(summary = "Listar todos los planos",
-               description = "Devuelve todos los planos registrados. Si hay un perfil de "
-                           + "filtrado activo, los puntos vienen ya filtrados.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Consulta exitosa")
     @GetMapping
     public ResponseEntity<ApiResponse<Set<Blueprint>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(services.getAllBlueprints()));
+        Set<Blueprint> blueprints = services.getAllBlueprints();
+        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "execute ok", blueprints));
     }
 
-    @Operation(summary = "Listar los planos de un autor")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Consulta exitosa")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "El autor no tiene planos")
     @GetMapping("/{author}")
-    public ResponseEntity<ApiResponse<Set<Blueprint>>> byAuthor(@PathVariable String author)
-            throws BlueprintNotFoundException {
-        return ResponseEntity.ok(ApiResponse.ok(services.getBlueprintsByAuthor(author)));
+    public ResponseEntity<ApiResponse<?>> byAuthor(@PathVariable String author) {
+        try {
+            Set<Blueprint> blueprints = services.getBlueprintsByAuthor(author);
+            return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "execute ok", blueprints));
+        } catch (BlueprintNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), e.getMessage(), null));
+        }
     }
 
-    @Operation(summary = "Consultar un plano concreto")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Consulta exitosa")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "El plano no existe")
     @GetMapping("/{author}/{bpname}")
-    public ResponseEntity<ApiResponse<Blueprint>> byAuthorAndName(@PathVariable String author,
-                                                                  @PathVariable String bpname)
-            throws BlueprintNotFoundException {
-        return ResponseEntity.ok(ApiResponse.ok(services.getBlueprint(author, bpname)));
+    public ResponseEntity<ApiResponse<?>> byAuthorAndName(@PathVariable String author, @PathVariable String bpname) {
+        try {
+            Blueprint bp = services.getBlueprint(author, bpname);
+            return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "execute ok", bp));
+        } catch (BlueprintNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), e.getMessage(), null));
+        }
     }
 
-    @Operation(summary = "Crear un plano nuevo")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Plano creado")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Datos invalidos")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Ya existe un plano con ese autor y nombre")
     @PostMapping
-    public ResponseEntity<ApiResponse<Blueprint>> add(@Valid @RequestBody NewBlueprintRequest req)
-            throws BlueprintPersistenceException {
-        Blueprint bp = new Blueprint(req.author(), req.name(), req.points());
-        services.addNewBlueprint(bp);
-        // Cabecera Location con la URI del recurso recien creado, como marca la convencion REST.
-        URI location = UriComponentsBuilder.fromPath("/api/v1/blueprints/{author}/{name}")
-                .buildAndExpand(bp.getAuthor(), bp.getName())
-                .toUri();
-        return ResponseEntity.created(location).body(ApiResponse.created(bp));
+    public ResponseEntity<ApiResponse<?>> add(@Valid @RequestBody NewBlueprintRequest req) {
+        try {
+            Blueprint bp = new Blueprint(req.author(), req.name(), req.points());
+            services.addNewBlueprint(bp);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ApiResponse<>(HttpStatus.CREATED.value(), "execute ok", bp));
+        } catch (BlueprintPersistenceException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), null));
+        }
     }
 
-    @Operation(summary = "Agregar un punto a un plano",
-               description = "Anade el punto al final de la secuencia existente.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Actualizacion aceptada")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "El plano no existe")
     @PutMapping("/{author}/{bpname}/points")
-    public ResponseEntity<ApiResponse<Void>> addPoint(@PathVariable String author,
-                                                      @PathVariable String bpname,
-                                                      @RequestBody Point p)
-            throws BlueprintNotFoundException {
-        services.addPoint(author, bpname, p.x(), p.y());
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.accepted(null));
+    public ResponseEntity<ApiResponse<?>> addPoint(@PathVariable String author, @PathVariable String bpname,
+                                                   @RequestBody Point p) {
+        try {
+            services.addPoint(author, bpname, p.x(), p.y());
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(new ApiResponse<>(HttpStatus.ACCEPTED.value(), "execute ok", p));
+        } catch (BlueprintNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(HttpStatus.NOT_FOUND.value(), e.getMessage(), null));
+        }
     }
+
+    public record NewBlueprintRequest(
+            @NotBlank String author,
+            @NotBlank String name,
+            @Valid List<Point> points
+    ) { }
 }
