@@ -1,4 +1,4 @@
-﻿# Evidencias de ejecucion
+# Evidencias de ejecucion
 
 Transcripciones reales de peticiones HTTP contra la API, capturadas el 2026-08-27 17:36.
 Aplicacion ejecutada con `--spring.profiles.active=inmemory` en `http://localhost:8080`.
@@ -451,13 +451,63 @@ automaticamente cuando hay una base de datos escuchando (ver seccion 5).
 
 ## 5. Evidencia de los datos en PostgreSQL
 
-> **Pendiente.** Requiere la base de datos en ejecucion. Con `docker compose up -d`
-> levantado y la aplicacion arrancada al menos una vez, se obtiene con:
->
-> ```
-> docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprints;"
-> docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprint_points ORDER BY author, name, point_index;"
-> ```
->
-> y con `./mvnw clean verify`, donde las ocho pruebas de
-> `PostgresBlueprintPersistenceTest` pasan de omitidas a ejecutadas.
+Con la base de datos levantada mediante `docker compose up -d` y la aplicacion ejecutada:
+
+### Consulta de planos (`blueprints`)
+
+```bash
+docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprints;"
+```
+
+Salida:
+
+```text
+ author |  name  
+--------+--------
+ john   | house
+ john   | garage
+ jane   | garden
+ diego  | studio
+(4 rows)
+```
+
+### Consulta de puntos (`blueprint_points`)
+
+```bash
+docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprint_points ORDER BY author, name, point_index;"
+```
+
+Salida:
+
+```text
+ id | author |  name  | point_index | x  | y  
+----+--------+--------+-------------+----+----
+ 25 | diego  | studio |           0 |  1 |  1
+ 26 | diego  | studio |           1 |  2 |  2
+ 27 | diego  | studio |           2 | 10 | 20
+  8 | jane   | garden |           0 |  2 |  2
+  9 | jane   | garden |           1 |  3 |  4
+ 10 | jane   | garden |           2 |  6 |  7
+  5 | john   | garage |           0 |  5 |  5
+  6 | john   | garage |           1 | 15 |  5
+  7 | john   | garage |           2 | 15 | 15
+  1 | john   | house  |           0 |  0 |  0
+  2 | john   | house  |           1 | 10 |  0
+  3 | john   | house  |           2 | 10 | 10
+  4 | john   | house  |           3 |  0 | 10
+(13 rows)
+```
+
+### Suite de pruebas con base de datos activa
+
+Salida de `./mvnw clean verify`:
+
+```text
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsSmokeTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsAPIControllerTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0  -- FiltersTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsServicesFilterTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0  -- PostgresBlueprintPersistenceTest
+Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```

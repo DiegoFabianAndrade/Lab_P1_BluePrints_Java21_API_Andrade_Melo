@@ -238,35 +238,14 @@ si el orden se pierde, la figura cambia y los filtros dejan de tener sentido.
 
 ## Buenas prácticas aplicadas
 
-**1. Versionamiento de la API.** La ruta base es `/api/v1/blueprints`. Un cambio futuro de
-contrato puede publicarse como `/api/v2` sin romper a los clientes existentes.
-
-**2. Contrato de respuesta uniforme.** El record genérico `ApiResponse<T>` evita que el cliente
-tenga que adivinar la forma de la respuesta según el caso: siempre encuentra `code`, `message` y
-`data`. Los errores usan el mismo sobre que los éxitos.
-
-**3. DTOs separados del dominio.** `NewBlueprintRequest` define qué puede enviar el cliente, con
-independencia de la entidad `Blueprint`. Sus anotaciones de validación rechazan peticiones mal
-formadas con `400` antes de que lleguen a la capa de servicios.
-
-**4. Manejo de errores centralizado.** `GlobalExceptionHandler` traduce cada excepción a su
-código HTTP. El controlador quedó sin bloques `try/catch` y la lógica de cada endpoint es una
-sola línea. El manejador genérico de `Exception` registra la traza completa en el log pero
-devuelve un mensaje genérico, para no filtrar detalles internos.
-
-**5. Inversión de dependencias en la persistencia.** La migración a PostgreSQL **no modificó la
-interfaz `BlueprintPersistence`**: se añadió otra implementación y ni los servicios ni el
-controlador se enteraron del cambio. Ese es el valor de programar contra abstracciones.
-
-**6. Configuración externalizada.** Las credenciales admiten sobrescritura por variables de
-entorno, así que el mismo artefacto sirve en distintos entornos sin recompilar.
-
-**7. Filtros componibles.** Los filtros se inyectan como `List<BlueprintsFilter>` y se aplican
-encadenados. Agregar un filtro nuevo no obliga a tocar `BlueprintsServices`.
-
-**8. Pruebas que no dependen del entorno.** Las pruebas de la capa web corren con el perfil
-`inmemory`, y las de persistencia se omiten solas cuando no hay base de datos. `mvn clean install`
-funciona en cualquier máquina, con o sin PostgreSQL.
+1. **Versionamiento de la API:** La ruta base `/api/v1/blueprints` permite evolucionar el contrato de la API a versiones posteriores sin alterar clientes existentes.
+2. **Respuesta uniforme:** Se utiliza `ApiResponse<T>` para estandarizar el formato de respuesta tanto en casos de éxito como de error (`code`, `message`, `data`).
+3. **Uso de DTOs:** `NewBlueprintRequest` desacopla los datos recibidos de la entidad de dominio `Blueprint`, incorporando validaciones de entrada con anotaciones de `jakarta.validation`.
+4. **Manejo centralizado de excepciones:** `GlobalExceptionHandler` captura las excepciones de negocio y validación mediante `@RestControllerAdvice`, asignando los códigos de estado HTTP correspondientes (`200`, `201`, `202`, `400`, `404`).
+5. **Inversión de dependencias:** La integración con PostgreSQL respeta la interfaz `BlueprintPersistence`, permitiendo alternar entre persistencia en memoria y base de datos relacional sin modificar las capas superiores.
+6. **Configuración por variables de entorno:** Los parámetros de conexión a PostgreSQL se parametrizan en `application.properties` con valores por defecto y soporte de variables de entorno (`DB_HOST`, `DB_PORT`, `DB_NAME`, etc.).
+7. **Inyección modular de filtros:** Los filtros se inyectan como lista ordenada (`List<BlueprintsFilter>`), permitiendo activar y combinar filtros mediante perfiles de Spring (`redundancy`, `undersampling`).
+8. **Pruebas desacopladas:** Las pruebas unitarias y de controladores utilizan perfiles en memoria, mientras que las pruebas de persistencia validan la integración con PostgreSQL cuando la base de datos está disponible.
 
 ---
 

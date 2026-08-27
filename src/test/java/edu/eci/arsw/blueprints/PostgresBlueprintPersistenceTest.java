@@ -20,25 +20,12 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pruebas de integracion de la persistencia en PostgreSQL.
- *
- * <p>Necesitan una base de datos real en ejecucion. Para que {@code mvn clean install}
- * no falle en un equipo sin base de datos, la clase comprueba primero si el servidor
- * responde y, si no lo hace, JUnit marca las pruebas como omitidas en lugar de
- * darlas por fallidas. La comprobacion se ejecuta antes de construir el contexto de
- * Spring, de modo que tampoco se intenta arrancar la aplicacion.</p>
- *
- * <p>Para ejecutarlas, basta con levantar la base de datos antes:
- * {@code docker compose up -d}.</p>
- */
 @SpringBootTest
 @Transactional
 @Tag("integration")
 @EnabledIf("postgresDisponible")
 class PostgresBlueprintPersistenceTest {
 
-    /** Comprueba si hay un PostgreSQL escuchando en el host y puerto configurados. */
     static boolean postgresDisponible() {
         String host = System.getenv().getOrDefault("DB_HOST", "localhost");
         int port = Integer.parseInt(System.getenv().getOrDefault("DB_PORT", "5432"));

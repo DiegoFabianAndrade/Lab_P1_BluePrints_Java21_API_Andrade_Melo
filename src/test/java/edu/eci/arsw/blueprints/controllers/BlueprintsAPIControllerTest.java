@@ -16,20 +16,6 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * Pruebas de integracion de la capa web.
- *
- * <p>Se ejecutan con el perfil {@code inmemory} porque lo que se verifica aqui es el
- * contrato HTTP —rutas, codigos de estado y forma del sobre {@code ApiResponse}—, no
- * el acceso a datos. Eso permite que {@code mvn clean install} funcione en cualquier
- * equipo sin necesidad de levantar PostgreSQL; la persistencia real se prueba aparte
- * en {@code PostgresBlueprintPersistenceTest}.</p>
- *
- * <p>No se anota con {@code @Transactional}: en modo memoria no hay gestor de
- * transacciones y, sobre todo, no tendria efecto, porque no se puede revertir un
- * {@code HashMap}. Las comprobaciones estan escritas para no depender del estado
- * dejado por otras pruebas.</p>
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("inmemory")
@@ -96,12 +82,6 @@ class BlueprintsAPIControllerTest {
                 .andExpect(jsonPath("$.data.name").value("office"));
     }
 
-    /**
-     * Crear un plano que ya existe se rechaza con 400 Bad Request, uno de los codigos
-     * que enumera el enunciado del laboratorio. Lo importante es que ya no responde
-     * 403 Forbidden como en el codigo base: 403 significa falta de permisos, que no es
-     * lo que ocurre aqui.
-     */
     @Test
     void shouldReturn400WhenCreatingDuplicateBlueprint() throws Exception {
         NewBlueprintRequest request =
