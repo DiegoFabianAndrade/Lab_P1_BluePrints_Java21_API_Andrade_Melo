@@ -5,19 +5,50 @@ import edu.eci.arsw.blueprints.model.Point;
 import edu.eci.arsw.blueprints.persistence.BlueprintNotFoundException;
 import edu.eci.arsw.blueprints.persistence.BlueprintPersistenceException;
 import edu.eci.arsw.blueprints.persistence.impl.PostgresBlueprintPersistence;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Pruebas de integracion de la persistencia en PostgreSQL.
+ *
+ * <p>Necesitan una base de datos real en ejecucion. Para que {@code mvn clean install}
+ * no falle en un equipo sin base de datos, la clase comprueba primero si el servidor
+ * responde y, si no lo hace, JUnit marca las pruebas como omitidas en lugar de
+ * darlas por fallidas. La comprobacion se ejecuta antes de construir el contexto de
+ * Spring, de modo que tampoco se intenta arrancar la aplicacion.</p>
+ *
+ * <p>Para ejecutarlas, basta con levantar la base de datos antes:
+ * {@code docker compose up -d}.</p>
+ */
 @SpringBootTest
 @Transactional
+@Tag("integration")
+@EnabledIf("postgresDisponible")
 class PostgresBlueprintPersistenceTest {
+
+    /** Comprueba si hay un PostgreSQL escuchando en el host y puerto configurados. */
+    static boolean postgresDisponible() {
+        String host = System.getenv().getOrDefault("DB_HOST", "localhost");
+        int port = Integer.parseInt(System.getenv().getOrDefault("DB_PORT", "5432"));
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), 1500);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
 
     @Autowired
     private PostgresBlueprintPersistence persistence;
