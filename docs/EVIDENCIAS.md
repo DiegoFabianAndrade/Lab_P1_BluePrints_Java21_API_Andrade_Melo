@@ -449,16 +449,7 @@ Lectura de los resultados:
 ![Filtro Undersampling](evidencias/07-filtro-undersampling.png)
 
 **Ambos perfiles encadenados:**
-### 3.4 Persistencia en Docker y PostgreSQL
-
-**Contenedor PostgreSQL y volumen:**
-![Contenedor Docker](evidencias/09-docker-contenedor.png)
-
-**Estructura y relaciones en PostgreSQL:**
-![Esquema PostgreSQL](evidencias/10-docker-postgres-tablas.png)
-
-**Consultas a las tablas blueprints y blueprint_points:**
-![Datos en PostgreSQL](evidencias/11-docker-postgres-datos.png)
+![Filtros Combinados](evidencias/08-filtros-combinados.png)
 
 ## 4. Suite de pruebas
 
@@ -481,7 +472,7 @@ automaticamente cuando hay una base de datos escuchando (ver seccion 5).
 
 Con la base de datos levantada mediante `docker compose up -d` y la aplicacion ejecutada:
 
-### Estado del contenedor Docker
+### Estado del contenedor Docker y volumen
 
 ```bash
 docker ps
@@ -490,7 +481,7 @@ docker volume ls
 
 ![Contenedor Docker](evidencias/09-docker-contenedor.png)
 
-### Estructura de las tablas
+### Estructura de las tablas y relaciones
 
 ```bash
 docker exec -it blueprints-db psql -U blueprints -d blueprints -c "\dt"
