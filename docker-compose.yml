@@ -1,0 +1,31 @@
+# Base de datos PostgreSQL para el laboratorio de Blueprints.
+#
+# Levantar:  docker compose up -d
+# Detener:   docker compose down
+# Borrar todo (incluidos los datos):  docker compose down -v
+#
+# La aplicacion crea las tablas y carga los datos de ejemplo por si misma al
+# arrancar (schema.sql y data.sql), de modo que este contenedor solo necesita
+# ofrecer una base de datos vacia.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: blueprints-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: blueprints
+      POSTGRES_USER: blueprints
+      POSTGRES_PASSWORD: blueprints
+    ports:
+      - "5432:5432"
+    volumes:
+      - blueprints-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blueprints -d blueprints"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  blueprints-data:

@@ -1,20 +1,35 @@
-package edu.eci.arsw.blueprints.persistence;
+package edu.eci.arsw.blueprints.persistence.impl;
 
 import edu.eci.arsw.blueprints.model.Blueprint;
 import edu.eci.arsw.blueprints.model.Point;
+import edu.eci.arsw.blueprints.persistence.BlueprintNotFoundException;
+import edu.eci.arsw.blueprints.persistence.BlueprintPersistence;
+import edu.eci.arsw.blueprints.persistence.BlueprintPersistenceException;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * Persistencia de planos en memoria.
+ *
+ * <p>Tras la migracion a PostgreSQL esta implementacion deja de ser la de por
+ * defecto y solo se registra con el perfil {@code inmemory}. Se conserva porque
+ * permite ejecutar la aplicacion y las pruebas sin depender de una base de datos.</p>
+ *
+ * <p>Los datos viven unicamente en el proceso: al detener la aplicacion se pierden.
+ * Esa es justamente la limitacion que resuelve {@link PostgresBlueprintPersistence}.</p>
+ */
 @Repository
+@Profile("inmemory")
 public class InMemoryBlueprintPersistence implements BlueprintPersistence {
 
     private final Map<String, Blueprint> blueprints = new ConcurrentHashMap<>();
 
     public InMemoryBlueprintPersistence() {
-        // Sample data 1:1 style (author/name key)
+        // Mismos datos de ejemplo que carga data.sql en PostgreSQL.
         Blueprint bp1 = new Blueprint("john", "house",
                 List.of(new Point(0,0), new Point(10,0), new Point(10,10), new Point(0,10)));
         Blueprint bp2 = new Blueprint("john", "garage",
