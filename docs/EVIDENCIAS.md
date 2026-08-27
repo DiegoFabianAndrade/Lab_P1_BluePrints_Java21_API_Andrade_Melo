@@ -419,18 +419,37 @@ Lectura de los resultados:
   Que los dos perfiles puedan convivir es consecuencia de que `BlueprintsServices`
   recibe una `List<BlueprintsFilter>` en lugar de un unico bean.
 
-## 3. Indice de capturas
+## 3. Capturas de pantalla
 
-| Archivo | Contenido |
-|---|---|
-| `evidencias/01-swagger-ui.png` | Swagger UI con los cinco endpoints y los esquemas `ApiResponse` |
-| `evidencias/02-openapi-json.png` | Documento OpenAPI generado en `/v3/api-docs` |
-| `evidencias/03-respuesta-200.png` | Respuesta exitosa con el sobre `ApiResponse` |
-| `evidencias/04-respuesta-404.png` | Respuesta de error con el mismo sobre |
-| `evidencias/05-filtro-ninguno.png` | Plano sin filtrar (6 puntos) |
-| `evidencias/06-filtro-redundancy.png` | Perfil `redundancy` (4 puntos) |
-| `evidencias/07-filtro-undersampling.png` | Perfil `undersampling` (3 puntos) |
-| `evidencias/08-filtros-combinados.png` | Ambos perfiles encadenados (2 puntos) |
+### 3.1 Swagger UI y OpenAPI
+
+**Swagger UI:**
+![Swagger UI](evidencias/01-swagger-ui.png)
+
+**Documento OpenAPI (/v3/api-docs):**
+![OpenAPI JSON](evidencias/02-openapi-json.png)
+
+### 3.2 Respuestas con sobre ApiResponse
+
+**Respuesta 200 OK:**
+![Respuesta 200](evidencias/03-respuesta-200.png)
+
+**Respuesta 404 Not Found:**
+![Respuesta 404](evidencias/04-respuesta-404.png)
+
+### 3.3 Filtros de puntos
+
+**Sin filtros:**
+![Filtro Ninguno](evidencias/05-filtro-ninguno.png)
+
+**Perfil redundancy:**
+![Filtro Redundancy](evidencias/06-filtro-redundancy.png)
+
+**Perfil undersampling:**
+![Filtro Undersampling](evidencias/07-filtro-undersampling.png)
+
+**Ambos perfiles encadenados:**
+![Filtros Combinados](evidencias/08-filtros-combinados.png)
 
 ## 4. Suite de pruebas
 
