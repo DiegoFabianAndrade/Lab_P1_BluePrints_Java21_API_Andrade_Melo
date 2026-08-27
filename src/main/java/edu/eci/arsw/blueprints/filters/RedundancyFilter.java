@@ -2,6 +2,7 @@ package edu.eci.arsw.blueprints.filters;
 
 import edu.eci.arsw.blueprints.model.Blueprint;
 import edu.eci.arsw.blueprints.model.Point;
+import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -10,10 +11,11 @@ import java.util.List;
 
 /**
  * Elimina puntos consecutivos duplicados (x,y) para reducir redundancia.
- * Perfil: "redundancy"
+ * Perfil: "redundancy". Se aplica antes que el submuestreo.
  */
 @Component
 @Profile("redundancy")
+@Order(1)
 public class RedundancyFilter implements BlueprintsFilter {
     @Override
     public Blueprint apply(Blueprint bp) {
@@ -22,7 +24,7 @@ public class RedundancyFilter implements BlueprintsFilter {
         List<Point> out = new ArrayList<>();
         Point prev = null;
         for (Point p : in) {
-            if (prev == null || !(prev.x()==p.x() && prev.y()==p.y())) {
+            if (prev == null || !(prev.x() == p.x() && prev.y() == p.y())) {
                 out.add(p);
                 prev = p;
             }
