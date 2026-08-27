@@ -449,7 +449,16 @@ Lectura de los resultados:
 ![Filtro Undersampling](evidencias/07-filtro-undersampling.png)
 
 **Ambos perfiles encadenados:**
-![Filtros Combinados](evidencias/08-filtros-combinados.png)
+### 3.4 Persistencia en Docker y PostgreSQL
+
+**Contenedor PostgreSQL y volumen:**
+![Contenedor Docker](evidencias/09-docker-contenedor.png)
+
+**Estructura y relaciones en PostgreSQL:**
+![Esquema PostgreSQL](evidencias/10-docker-postgres-tablas.png)
+
+**Consultas a las tablas blueprints y blueprint_points:**
+![Datos en PostgreSQL](evidencias/11-docker-postgres-datos.png)
 
 ## 4. Suite de pruebas
 
@@ -472,50 +481,32 @@ automaticamente cuando hay una base de datos escuchando (ver seccion 5).
 
 Con la base de datos levantada mediante `docker compose up -d` y la aplicacion ejecutada:
 
-### Consulta de planos (`blueprints`)
+### Estado del contenedor Docker
+
+```bash
+docker ps
+docker volume ls
+```
+
+![Contenedor Docker](evidencias/09-docker-contenedor.png)
+
+### Estructura de las tablas
+
+```bash
+docker exec -it blueprints-db psql -U blueprints -d blueprints -c "\dt"
+docker exec -it blueprints-db psql -U blueprints -d blueprints -c "\d blueprints"
+```
+
+![Esquema PostgreSQL](evidencias/10-docker-postgres-tablas.png)
+
+### Consulta de planos y puntos persistidos
 
 ```bash
 docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprints;"
-```
-
-Salida:
-
-```text
- author |  name  
---------+--------
- john   | house
- john   | garage
- jane   | garden
- diego  | studio
-(4 rows)
-```
-
-### Consulta de puntos (`blueprint_points`)
-
-```bash
 docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprint_points ORDER BY author, name, point_index;"
 ```
 
-Salida:
-
-```text
- id | author |  name  | point_index | x  | y  
-----+--------+--------+-------------+----+----
- 25 | diego  | studio |           0 |  1 |  1
- 26 | diego  | studio |           1 |  2 |  2
- 27 | diego  | studio |           2 | 10 | 20
-  8 | jane   | garden |           0 |  2 |  2
-  9 | jane   | garden |           1 |  3 |  4
- 10 | jane   | garden |           2 |  6 |  7
-  5 | john   | garage |           0 |  5 |  5
-  6 | john   | garage |           1 | 15 |  5
-  7 | john   | garage |           2 | 15 | 15
-  1 | john   | house  |           0 |  0 |  0
-  2 | john   | house  |           1 | 10 |  0
-  3 | john   | house  |           2 | 10 | 10
-  4 | john   | house  |           3 |  0 | 10
-(13 rows)
-```
+![Datos en PostgreSQL](evidencias/11-docker-postgres-datos.png)
 
 ### Suite de pruebas con base de datos activa
 
