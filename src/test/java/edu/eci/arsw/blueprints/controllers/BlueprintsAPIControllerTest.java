@@ -1,6 +1,7 @@
 package edu.eci.arsw.blueprints.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.eci.arsw.blueprints.dto.NewBlueprintRequest;
 import edu.eci.arsw.blueprints.model.Point;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,8 +69,8 @@ class BlueprintsAPIControllerTest {
 
     @Test
     void shouldCreateBlueprint() throws Exception {
-        BlueprintsAPIController.NewBlueprintRequest request =
-                new BlueprintsAPIController.NewBlueprintRequest("tester", "office",
+        NewBlueprintRequest request =
+                new NewBlueprintRequest("tester", "office",
                         List.of(new Point(10, 10), new Point(20, 20)));
 
         mockMvc.perform(post("/api/v1/blueprints")
@@ -83,8 +84,8 @@ class BlueprintsAPIControllerTest {
 
     @Test
     void shouldReturn400WhenCreatingDuplicateBlueprint() throws Exception {
-        BlueprintsAPIController.NewBlueprintRequest request =
-                new BlueprintsAPIController.NewBlueprintRequest("john", "house",
+        NewBlueprintRequest request =
+                new NewBlueprintRequest("john", "house",
                         List.of(new Point(0, 0)));
 
         mockMvc.perform(post("/api/v1/blueprints")

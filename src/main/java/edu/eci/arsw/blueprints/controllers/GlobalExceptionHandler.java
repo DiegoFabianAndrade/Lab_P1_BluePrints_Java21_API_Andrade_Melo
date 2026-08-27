@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BlueprintPersistenceException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflict(BlueprintPersistenceException ex) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), null);
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
     }
 
     /** 400: el cuerpo llego con campos que incumplen las restricciones de validacion. */
