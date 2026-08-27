@@ -11,17 +11,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Logica de negocio de planos.
- *
- * <p>Recibe <b>todos</b> los filtros activos y los aplica encadenados, en el orden
- * declarado con {@code @Order}. Asi se pueden activar varios perfiles a la vez
- * (por ejemplo {@code --spring.profiles.active=redundancy,undersampling}) sin que
- * el contexto de Spring falle por beans duplicados.</p>
- *
- * <p>El filtrado se aplica a <b>todas</b> las consultas de lectura, no solo a la
- * consulta de un plano individual.</p>
- */
 @Service
 public class BlueprintsServices {
 
@@ -33,7 +22,6 @@ public class BlueprintsServices {
         this.filters = filters;
     }
 
-    /** Aplica en cadena todos los filtros activos sobre un plano. */
     private Blueprint filter(Blueprint bp) {
         Blueprint result = bp;
         for (BlueprintsFilter f : filters) {
@@ -42,7 +30,6 @@ public class BlueprintsServices {
         return result;
     }
 
-    /** Aplica la cadena de filtros a cada plano del conjunto, preservando el orden. */
     private Set<Blueprint> filter(Set<Blueprint> bps) {
         Set<Blueprint> result = new LinkedHashSet<>();
         for (Blueprint bp : bps) {

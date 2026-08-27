@@ -9,14 +9,11 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Elimina puntos consecutivos duplicados (x,y) para reducir redundancia.
- * Perfil: "redundancy". Se aplica antes que el submuestreo.
- */
 @Component
 @Profile("redundancy")
 @Order(1)
 public class RedundancyFilter implements BlueprintsFilter {
+
     @Override
     public Blueprint apply(Blueprint bp) {
         List<Point> in = bp.getPoints();

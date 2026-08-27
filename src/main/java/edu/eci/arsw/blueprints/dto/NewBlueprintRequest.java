@@ -7,14 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 
-/**
- * Cuerpo esperado al crear un plano nuevo.
- *
- * <p>Es un DTO de entrada: separa lo que el cliente puede enviar de la entidad de
- * dominio {@link edu.eci.arsw.blueprints.model.Blueprint}. Las anotaciones de
- * validacion hacen que una peticion mal formada se rechace con 400 antes de llegar
- * a la capa de servicios.</p>
- */
 @Schema(description = "Datos para crear un plano")
 public record NewBlueprintRequest(
 
@@ -26,7 +18,7 @@ public record NewBlueprintRequest(
         @NotBlank(message = "el nombre es obligatorio")
         String name,
 
-        @Schema(description = "Secuencia ordenada de puntos que componen el plano")
+        @Schema(description = "Puntos que componen el plano")
         @Valid
         List<Point> points
 ) { }

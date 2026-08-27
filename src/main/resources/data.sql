@@ -1,9 +1,3 @@
--- Datos de ejemplo, identicos a los del repositorio en memoria, para que la API
--- responda lo mismo con cualquiera de las dos implementaciones de persistencia.
---
--- ON CONFLICT DO NOTHING hace la carga idempotente: reiniciar la aplicacion no
--- duplica ni falla.
-
 INSERT INTO blueprints (author, name) VALUES
     ('john', 'house'),
     ('john', 'garage'),

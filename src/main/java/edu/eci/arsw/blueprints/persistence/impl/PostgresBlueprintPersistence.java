@@ -14,21 +14,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Persistencia de planos sobre PostgreSQL.
- *
- * <p>Es la implementacion activa por defecto y sustituye a la version en memoria.
- * Para volver a la version en memoria (por ejemplo en pruebas o en una demo sin
- * base de datos) se arranca con el perfil {@code inmemory}.</p>
- *
- * <p>Se usa {@link JdbcTemplate} en lugar de un ORM para que el SQL quede explicito
- * y auditable: cada operacion del contrato {@link BlueprintPersistence} se traduce
- * en consultas visibles, sin comportamiento oculto.</p>
- *
- * <p>Los puntos se leen y escriben siempre ordenados por {@code point_index}, porque
- * un plano es una <b>secuencia</b> de puntos: si el orden se pierde, la figura cambia
- * y los filtros de redundancia y submuestreo dejan de tener sentido.</p>
- */
 @Repository
 @Profile("!inmemory")
 public class PostgresBlueprintPersistence implements BlueprintPersistence {
@@ -93,15 +78,12 @@ public class PostgresBlueprintPersistence implements BlueprintPersistence {
         if (!exists(author, name)) {
             throw new BlueprintNotFoundException("Blueprint not found: %s/%s".formatted(author, name));
         }
-        // El nuevo punto se anade al final de la secuencia existente.
         Integer nextIndex = jdbc.queryForObject(
                 "SELECT COALESCE(MAX(point_index) + 1, 0) FROM blueprint_points WHERE author = ? AND name = ?",
                 Integer.class, author, name);
         jdbc.update("INSERT INTO blueprint_points (author, name, point_index, x, y) VALUES (?, ?, ?, ?, ?)",
                 author, name, nextIndex, x, y);
     }
-
-    // ---------- utilidades internas ----------
 
     private boolean exists(String author, String name) {
         Integer count = jdbc.queryForObject(
