@@ -1,93 +1,58 @@
-# Laboratorio 3 — REST API Blueprints
+# Laboratorio 3 — REST API Blueprints (Parte 1 y Parte 2)
 
-**Arquitecturas de Software (ARSW) — Escuela Colombiana de Ingeniería Julio Garavito**
-Java 21 · Spring Boot 3.3.9 · PostgreSQL · springdoc-openapi
+**Arquitecturas de Software (ARSW) — Escuela Colombiana de Ingeniería Julio Garavito**  
+Java 21 · Spring Boot 3.3.9 · PostgreSQL · Spring Security (OAuth2 / JWT) · springdoc-openapi
 
 Autores: **Diego Fabián Andrade** · **Juan Diego Melo**
 
-API REST para gestionar *blueprints* (planos): cada plano tiene un autor, un nombre y una
-secuencia ordenada de puntos `(x, y)`. Los datos se persisten en PostgreSQL y la API expone su
-documentación con OpenAPI/Swagger.
+API REST para gestionar planos arquitectónicos (*blueprints*): cada plano cuenta con un autor, un nombre y una secuencia ordenada de puntos `(x, y)`. Los datos se persisten en PostgreSQL (o repositorio en memoria), la API está protegida como **OAuth2 Resource Server** mediante **JSON Web Tokens (JWT)** firmados con **RS256**, y expone su documentación interactiva mediante Swagger/OpenAPI con soporte de autenticación Bearer.
 
 ---
 
 ## Requisitos
 
-| | Versión | Nota |
+| Componente | Versión | Detalle |
 |---|---|---|
-| Java | 21 | |
-| Maven | 3.9+ | **no hace falta instalarlo**: el repositorio incluye el wrapper `./mvnw` |
-| PostgreSQL | 16 | vía Docker o instalación nativa |
+| Java | 21 | JDK 21 LTS |
+| Maven | 3.9+ | Incluido mediante el wrapper `./mvnw` |
+| PostgreSQL | 16 | Vía Docker (`docker compose`) o instalación local |
 
 ---
 
 ## ⭐ Cómo cargar la base de datos
 
-> Esta es la sección a seguir para evaluar el laboratorio.
+**La aplicación crea su propio esquema y carga los datos de ejemplo al arrancar.** Spring Boot ejecuta `src/main/resources/schema.sql` y `src/main/resources/data.sql` de forma idempotente con `spring.sql.init.mode=always`.
 
-**La aplicación crea su propio esquema y carga los datos de ejemplo al arrancar.** No hay que
-ejecutar ningún script a mano: basta con que exista una base de datos vacía. De eso se encarga
-Spring Boot con `spring.sql.init.mode=always`, ejecutando `src/main/resources/schema.sql` y
-`src/main/resources/data.sql`. Ambos son idempotentes, así que arrancar varias veces no duplica
-datos ni produce errores.
-
-### Opción A — Docker (recomendada)
+### Opción A — Docker (Recomendada)
 
 ```bash
 docker compose up -d
 ```
 
-Eso levanta PostgreSQL 16 con la base `blueprints`, usuario `blueprints` y contraseña
-`blueprints` en el puerto `5432`, que es justo lo que espera `application.properties`.
+Levanta el contenedor PostgreSQL 16 con usuario `blueprints`, contraseña `blueprints` y base `blueprints` en el puerto `5432`.
 
-Luego se arranca la aplicación:
+Para iniciar la aplicación:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Al terminar:
+Para detener el contenedor al finalizar:
 
 ```bash
 docker compose down
 ```
 
-(`docker compose down -v` detiene y además borra los datos.)
-
-### Opción B — PostgreSQL instalado localmente
-
-Si no se dispone de Docker, se crea una vez la base y el usuario:
+### Opción B — PostgreSQL Local
 
 ```sql
 CREATE USER blueprints WITH PASSWORD 'blueprints';
 CREATE DATABASE blueprints OWNER blueprints;
 ```
 
-Y se arranca la aplicación igual que en la opción A. Si los datos de conexión son distintos, se
-sobrescriben con variables de entorno, sin tocar el código:
+Variables de entorno configurables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
 
-| Variable | Valor por defecto |
-|---|---|
-| `DB_HOST` | `localhost` |
-| `DB_PORT` | `5432` |
-| `DB_NAME` | `blueprints` |
-| `DB_USER` | `blueprints` |
-| `DB_PASSWORD` | `blueprints` |
-
-### Verificar que los datos quedaron cargados
-
-```bash
-docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprints;"
-```
-
-```bash
-docker exec -it blueprints-db psql -U blueprints -d blueprints -c "SELECT * FROM blueprint_points ORDER BY author, name, point_index;"
-```
-
-### Ejecutar sin base de datos
-
-Para revisar la API sin levantar PostgreSQL existe el perfil `inmemory`, que usa el repositorio
-en memoria:
+### Ejecución sin base de datos (Perfil `inmemory`)
 
 ```bash
 ./mvnw spring-boot:run "-Dspring-boot.run.profiles=inmemory"
@@ -95,25 +60,69 @@ en memoria:
 
 ---
 
-## Compilar y probar
+## Compilar y Probar
 
 ```bash
 ./mvnw clean verify
 ```
 
-En Windows: `.\mvnw.cmd clean verify`
+En Windows PowerShell:
+```powershell
+.\mvnw.cmd clean verify
+```
 
-El build **no requiere base de datos**: las pruebas de integración contra PostgreSQL se omiten
-automáticamente si no hay un servidor escuchando, y se ejecutan solas cuando sí lo hay.
+El build **no requiere base de datos obligatoria**: las pruebas de integración contra PostgreSQL se habilitan automáticamente si el motor responde, y se omiten sin fallar cuando no hay base de datos levantada.
 
 ---
 
-## Documentación de la API
+## 🔐 Seguridad y Autenticación con JWT (OAuth 2.0)
+
+La API opera como un **Resource Server OAuth2** validando tokens JWT firmados asimétricamente con **RS256** (RSA 2048 bits).
+
+### 1. Usuarios en Memoria para Autenticación
+
+| Usuario | Contraseña | Scopes Asignados |
+|---|---|---|
+| `student` | `student123` | `blueprints.read`, `blueprints.write` |
+| `assistant` | `assistant123` | `blueprints.read`, `blueprints.write` |
+
+### 2. Obtener Token de Acceso (`POST /auth/login`)
+
+```bash
+curl -i -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"student","password":"student123"}'
+```
+
+Respuesta `200 OK`:
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+### 3. Consumo de Endpoints Protegidos con Bearer Token
+
+```bash
+curl -i http://localhost:8080/api/v1/blueprints \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+- Peticiones sin token o con token inválido devuelven `401 Unauthorized`.
+- Peticiones con scopes insuficientes devuelven `403 Forbidden`.
+
+---
+
+## Documentación OpenAPI / Swagger UI
 
 Con la aplicación en ejecución:
 
-- **Swagger UI** — <http://localhost:8080/swagger-ui.html>
-- **OpenAPI JSON** — <http://localhost:8080/v3/api-docs>
+- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+> En Swagger UI, pulsa el botón **Authorize** e ingresa el token obtenido de `/auth/login` (o en formato `Bearer <token>`) para probar los endpoints interactivos.
 
 ---
 
@@ -121,90 +130,44 @@ Con la aplicación en ejecución:
 
 Ruta base: **`/api/v1/blueprints`**
 
-| Método | Ruta | Descripción | Éxito |
-|---|---|---|---|
-| `GET` | `/api/v1/blueprints` | Todos los planos | `200` |
-| `GET` | `/api/v1/blueprints/{author}` | Planos de un autor | `200` |
-| `GET` | `/api/v1/blueprints/{author}/{name}` | Un plano concreto | `200` |
-| `POST` | `/api/v1/blueprints` | Registrar un plano nuevo | `201` |
-| `PUT` | `/api/v1/blueprints/{author}/{name}/points` | Agregar un punto al final | `202` |
+| Método | Ruta | Scope Requerido | Descripción | Código Éxito |
+|---|---|---|---|:---:|
+| `POST` | `/auth/login` | *Público* | Iniciar sesión y emitir JWT | `200` |
+| `GET` | `/api/v1/blueprints` | `blueprints.read` | Listar todos los planos | `200` |
+| `GET` | `/api/v1/blueprints/{author}` | `blueprints.read` | Planos de un autor específico | `200` |
+| `GET` | `/api/v1/blueprints/{author}/{name}` | `blueprints.read` | Obtener un plano específico | `200` |
+| `POST` | `/api/v1/blueprints` | `blueprints.write` | Registrar un nuevo plano | `201` |
+| `PUT` | `/api/v1/blueprints/{author}/{name}/points` | `blueprints.write` | Agregar un punto al final del plano | `202` |
 
-### Ejemplos
+---
 
-```bash
-curl http://localhost:8080/api/v1/blueprints/john/house
-```
+## Formato de Respuesta: `ApiResponse<T>`
 
-```bash
-curl -i -X POST http://localhost:8080/api/v1/blueprints -H 'Content-Type: application/json' -d '{"author":"john","name":"kitchen","points":[{"x":1,"y":1},{"x":2,"y":2}]}'
-```
+Todas las respuestas de negocio comparten la misma estructura:
 
-```bash
-curl -i -X PUT http://localhost:8080/api/v1/blueprints/john/kitchen/points -H 'Content-Type: application/json' -d '{"x":3,"y":3}'
+```json
+{
+  "code": 200,
+  "message": "execute ok",
+  "data": [ ... ]
+}
 ```
 
 ---
 
-## Respuesta uniforme: `ApiResponse<T>`
+## Filtros de Planos
 
-**Todas** las respuestas —exitosas y de error— comparten la misma estructura:
+Se activan por perfiles de Spring Boot y se aplican en cadena ordenada:
 
-```java
-public record ApiResponse<T>(int code, String message, T data) { }
-```
-
-```json
-{ "code": 200, "message": "execute ok", "data": { "author": "john", "name": "house", "points": [] } }
-```
-
-```json
-{ "code": 404, "message": "Blueprint not found: john/nada", "data": null }
-```
-
-```json
-{ "code": 400, "message": "datos invalidos", "data": { "author": "el autor es obligatorio" } }
-```
-
----
-
-## Códigos HTTP
-
-| Código | Cuándo |
+| Perfil | Acción |
 |---|---|
-| `200 OK` | Consulta resuelta |
-| `201 Created` | Plano creado (incluye cabecera `Location`) |
-| `202 Accepted` | Punto agregado |
-| `400 Bad Request` | Validación fallida, JSON mal formado o plano duplicado |
-| `404 Not Found` | Autor, plano o ruta inexistente |
-| `405 Method Not Allowed` | La ruta existe pero no admite ese método |
-| `500 Internal Server Error` | Error no previsto (se registra en el log; no se expone el detalle) |
-
-Todos se producen en `GlobalExceptionHandler`, anotado con `@RestControllerAdvice`.
-
----
-
-## Filtros de puntos
-
-Reducen la cantidad de puntos devueltos y se activan por perfil de Spring:
-
-| Perfil | Efecto |
-|---|---|
-| *(ninguno)* | Devuelve los puntos sin modificar |
+| *(ninguno)* | Retorna los puntos originales |
 | `redundancy` | Elimina puntos consecutivos duplicados |
-| `undersampling` | Conserva uno de cada dos puntos |
+| `undersampling` | Conserva un punto de cada dos (submuestreo) |
 
+Ejemplo:
 ```bash
-./mvnw spring-boot:run "-Dspring-boot.run.profiles=redundancy"
-```
-
-Los perfiles **se pueden combinar**. `BlueprintsServices` recibe una `List<BlueprintsFilter>` y
-aplica todos los filtros activos encadenados, en el orden fijado con `@Order`:
-
-```
-(0,0) (0,0) (1,1) (1,1) (2,2) (3,3)     6 puntos — sin filtros
-(0,0) (1,1) (2,2) (3,3)                 4 puntos — redundancy
-(0,0) (1,1) (2,2)                       3 puntos — undersampling
-(0,0) (2,2)                             2 puntos — ambos encadenados
+./mvnw spring-boot:run "-Dspring-boot.run.profiles=redundancy,undersampling"
 ```
 
 ---
@@ -215,66 +178,50 @@ aplica todos los filtros activos encadenados, en el orden fijado con `@Order`:
 src/main/java/edu/eci/arsw/blueprints
   ├── model/         Blueprint, Point
   ├── dto/           ApiResponse<T>, NewBlueprintRequest
-  ├── persistence/   BlueprintPersistence (contrato) + excepciones
-  │    └── impl/     InMemoryBlueprintPersistence, PostgresBlueprintPersistence
+  ├── persistence/   BlueprintPersistence + Postgres/InMemory
   ├── services/      BlueprintsServices
   ├── filters/       BlueprintsFilter + Identity, Redundancy, Undersampling
   ├── controllers/   BlueprintsAPIController, GlobalExceptionHandler
+  ├── auth/          AuthController
+  ├── security/      SecurityConfig, MethodSecurityConfig, JwtKeyProvider, InMemoryUserService, RsaKeyProperties
   └── config/        OpenApiConfig
 ```
 
-### Modelo de datos
+---
 
-```
-blueprints(author, name)                                PK (author, name)
-blueprint_points(id, author, name, point_index, x, y)   FK -> blueprints
-                                                        UNIQUE (author, name, point_index)
-```
+## Buenas Prácticas Aplicadas
 
-`point_index` **preserva el orden** de los puntos. Un plano es una *secuencia*, no un conjunto:
-si el orden se pierde, la figura cambia y los filtros dejan de tener sentido.
+1. **Seguridad Stateless con OAuth2 Resource Server:** Validación de JWT en cada petición sin estado de sesión en servidor (`SessionCreationPolicy.STATELESS`).
+2. **Criptografía Asimétrica (RS256):** Firma con llave privada RSA y verificación de integridad y autenticidad con llave pública.
+3. **Control de Acceso por Scopes:** Separación de privilegios de lectura (`blueprints.read`) y escritura (`blueprints.write`) mediante `@PreAuthorize`.
+4. **Versionamiento de la API:** Ruta base `/api/v1/blueprints`.
+5. **Respuesta uniforme:** Estandarización de formato mediante `ApiResponse<T>`.
+6. **Desacoplamiento con DTOs:** Validación de entrada con `jakarta.validation`.
+7. **Manejo Centralizado de Excepciones:** `GlobalExceptionHandler` mapeando errores a códigos HTTP `400`, `401`, `403`, `404`, `405`.
+8. **Inversión de Dependencias y Modularidad:** Persistencia y filtros intercambiables mediante perfiles Spring.
 
 ---
 
-## Buenas prácticas aplicadas
+## Pruebas Automatizadas
 
-1. **Versionamiento de la API:** La ruta base `/api/v1/blueprints` permite evolucionar el contrato de la API a versiones posteriores sin alterar clientes existentes.
-2. **Respuesta uniforme:** Se utiliza `ApiResponse<T>` para estandarizar el formato de respuesta tanto en casos de éxito como de error (`code`, `message`, `data`).
-3. **Uso de DTOs:** `NewBlueprintRequest` desacopla los datos recibidos de la entidad de dominio `Blueprint`, incorporando validaciones de entrada con anotaciones de `jakarta.validation`.
-4. **Manejo centralizado de excepciones:** `GlobalExceptionHandler` captura las excepciones de negocio y validación mediante `@RestControllerAdvice`, asignando los códigos de estado HTTP correspondientes (`200`, `201`, `202`, `400`, `404`).
-5. **Inversión de dependencias:** La integración con PostgreSQL respeta la interfaz `BlueprintPersistence`, permitiendo alternar entre persistencia en memoria y base de datos relacional sin modificar las capas superiores.
-6. **Configuración por variables de entorno:** Los parámetros de conexión a PostgreSQL se parametrizan en `application.properties` con valores por defecto y soporte de variables de entorno (`DB_HOST`, `DB_PORT`, `DB_NAME`, etc.).
-7. **Inyección modular de filtros:** Los filtros se inyectan como lista ordenada (`List<BlueprintsFilter>`), permitiendo activar y combinar filtros mediante perfiles de Spring (`redundancy`, `undersampling`).
-8. **Pruebas desacopladas:** Las pruebas unitarias y de controladores utilizan perfiles en memoria, mientras que las pruebas de persistencia validan la integración con PostgreSQL cuando la base de datos está disponible.
-
----
-
-## Pruebas
-
-| Clase | Qué verifica | Requiere BD |
-|---|---|---|
-| `BlueprintsSmokeTest` | El contexto de Spring se construye | no |
-| `FiltersTest` | Lógica de cada filtro de forma aislada | no |
-| `BlueprintsServicesFilterTest` | Encadenamiento de filtros por perfil | no |
-| `BlueprintsAPIControllerTest` | Contrato HTTP con MockMvc: rutas, códigos y sobre | no |
-| `PostgresBlueprintPersistenceTest` | Persistencia real contra PostgreSQL | **sí** |
+| Clase de Prueba | Objetivo | Requiere BD |
+|---|---|:---:|
+| `BlueprintsSmokeTest` | Carga del contexto Spring | No |
+| `AuthControllerTest` | Autenticación y emisión de JWT en `/auth/login` | No |
+| `BlueprintsAPIControllerTest` | Seguridad por scopes, MockMvc y contratos HTTP | No |
+| `FiltersTest` | Lógica unitaria de filtros de redundancia y submuestreo | No |
+| `BlueprintsServicesFilterTest` | Integración de filtros por perfiles Spring | No |
+| `PostgresBlueprintPersistenceTest` | Persistencia real en PostgreSQL | **Sí** |
 
 ---
 
-## Evidencias
+## Mapa de Actividades del Laboratorio
 
-En [`docs/EVIDENCIAS.md`](docs/EVIDENCIAS.md): transcripciones reales de peticiones HTTP con sus
-códigos de estado y demostración de los filtros. Las capturas de Swagger UI están en
-[`docs/evidencias/`](docs/evidencias/).
-
----
-
-## Mapa de las actividades del laboratorio
-
-| Actividad | Dónde quedó implementada |
+| Actividad | Implementación |
 |---|---|
-| 1. Familiarización con el código base | — |
-| 2. Migración a PostgreSQL | `persistence/impl/PostgresBlueprintPersistence.java`, `schema.sql`, `data.sql`, `docker-compose.yml` |
-| 3. Buenas prácticas REST | `dto/ApiResponse.java`, `controllers/BlueprintsAPIController.java`, `controllers/GlobalExceptionHandler.java` |
-| 4. OpenAPI / Swagger | `config/OpenApiConfig.java` y anotaciones `@Operation` del controlador |
-| 5. Filtros de blueprints | `filters/`, `services/BlueprintsServices.java` |
+| 1. Familiarización con código base | Análisis y estructura modular del proyecto |
+| 2. Persistencia en PostgreSQL + Docker | `PostgresBlueprintPersistence`, `schema.sql`, `data.sql`, `docker-compose.yml` |
+| 3. Buenas prácticas REST | `/api/v1/blueprints`, `ApiResponse`, `NewBlueprintRequest`, `GlobalExceptionHandler` |
+| 4. Documentación OpenAPI / Swagger | `OpenApiConfig`, esquemas y anotaciones `@Operation` |
+| 5. Filtros de Blueprints | `IdentityFilter`, `RedundancyFilter`, `UndersamplingFilter`, perfiles Spring |
+| 6. Seguridad JWT / OAuth 2.0 | `SecurityConfig`, `JwtKeyProvider`, `AuthController`, `@PreAuthorize` por scopes |

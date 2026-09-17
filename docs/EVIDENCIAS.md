@@ -505,10 +505,107 @@ Salida de `./mvnw clean verify`:
 
 ```text
 Tests run: 1, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsSmokeTest
-Tests run: 9, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsAPIControllerTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0  -- AuthControllerTest
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsAPIControllerTest
 Tests run: 6, Failures: 0, Errors: 0, Skipped: 0  -- FiltersTest
 Tests run: 3, Failures: 0, Errors: 0, Skipped: 0  -- BlueprintsServicesFilterTest
 Tests run: 8, Failures: 0, Errors: 0, Skipped: 0  -- PostgresBlueprintPersistenceTest
-Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 33, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
+```
+
+---
+
+## 6. Evidencia de Seguridad JWT (OAuth 2.0 Resource Server)
+
+### 6.1 Inicio de Sesión y Emisión de Token (`POST /auth/login`)
+
+**Petición:**
+```http
+POST /auth/login
+Content-Type: application/json
+
+{"username":"student","password":"student123"}
+```
+
+**Respuesta 200 OK:**
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+### 6.2 Intento con Credenciales Inválidas
+
+**Petición:**
+```http
+POST /auth/login
+Content-Type: application/json
+
+{"username":"student","password":"password_incorrecto"}
+```
+
+**Respuesta 401 Unauthorized:**
+```json
+{
+  "error": "invalid_credentials"
+}
+```
+
+### 6.3 Petición sin Token a Endpoint Protegido
+
+**Petición:**
+```http
+GET /api/v1/blueprints
+```
+
+**Respuesta:** `401 Unauthorized`
+
+### 6.4 Petición con Bearer Token y Scope `blueprints.read`
+
+**Petición:**
+```http
+GET /api/v1/blueprints
+Authorization: Bearer <TOKEN>
+```
+
+**Respuesta 200 OK:**
+```json
+{
+  "code": 200,
+  "message": "execute ok",
+  "data": [
+    {
+      "author": "john",
+      "name": "house",
+      "points": [ { "x": 0, "y": 0 }, { "x": 10, "y": 0 }, { "x": 10, "y": 10 }, { "x": 0, "y": 10 } ]
+    }
+  ]
+}
+```
+
+### 6.5 Creación de Plano con Bearer Token y Scope `blueprints.write`
+
+**Petición:**
+```http
+POST /api/v1/blueprints
+Authorization: Bearer <TOKEN>
+Content-Type: application/json
+
+{"author":"student","name":"lab2_secure","points":[{"x":10,"y":20},{"x":30,"y":40}]}
+```
+
+**Respuesta 201 Created:**
+```json
+{
+  "code": 201,
+  "message": "blueprint created",
+  "data": {
+    "author": "student",
+    "name": "lab2_secure",
+    "points": [ { "x": 10, "y": 20 }, { "x": 30, "y": 40 } ]
+  }
+}
 ```
