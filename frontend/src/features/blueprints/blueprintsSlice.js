@@ -55,6 +55,8 @@ const initialState = {
   current: null,
   /** Puntos que el usuario dibuja a mano antes de guardarlos. */
   draftPoints: [],
+  /** Copia de seguridad para revertir un borrado optimista que falle. */
+  pendingDelete: null,
   /** Estado por thunk: idle | loading | succeeded | failed. */
   loading: { all: 'idle', byAuthor: 'idle', current: 'idle', mutation: 'idle' },
   /** Error por thunk, en texto listo para mostrar. */
@@ -156,14 +158,34 @@ const slice = createSlice({
         s.draftPoints = []
       })
 
-      .addCase(deleteBlueprint.fulfilled, (s, a) => {
-        const { author, name } = a.payload
+      // Borrado optimista: la fila desaparece de inmediato y se guarda una copia
+      // por si el servidor rechaza la operacion.
+      .addCase(deleteBlueprint.pending, (s, a) => {
+        const { author, name } = a.meta.arg
+        const snapshot =
+          s.all.find((bp) => bp.author === author && bp.name === name) ||
+          (s.byAuthor[author] || []).find((bp) => bp.name === name) ||
+          null
+        s.pendingDelete = { author, name, snapshot, current: s.current }
         removeFrom(s.all, author, name)
         if (s.byAuthor[author]) removeFrom(s.byAuthor[author], author, name)
         if (s.current && s.current.author === author && s.current.name === name) {
           s.current = null
           s.draftPoints = []
         }
+      })
+      .addCase(deleteBlueprint.fulfilled, (s) => {
+        s.pendingDelete = null
+      })
+      .addCase(deleteBlueprint.rejected, (s) => {
+        // Revierte: el plano vuelve a la lista y se restaura el que estaba abierto.
+        const backup = s.pendingDelete
+        if (backup?.snapshot) {
+          upsert(s.all, backup.snapshot)
+          if (s.byAuthor[backup.author]) upsert(s.byAuthor[backup.author], backup.snapshot)
+        }
+        if (backup?.current) s.current = backup.current
+        s.pendingDelete = null
       })
 
       // addPoint y updatePoints devuelven el plano completo ya actualizado.

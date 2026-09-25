@@ -101,6 +101,28 @@ public class PostgresBlueprintPersistence implements BlueprintPersistence {
                 author, name, nextIndex, x, y);
     }
 
+    @Override
+    @Transactional
+    public void updatePoints(String author, String name, List<Point> points) throws BlueprintNotFoundException {
+        if (!exists(author, name)) {
+            throw new BlueprintNotFoundException("Blueprint not found: %s/%s".formatted(author, name));
+        }
+        // Se borra la secuencia completa y se reinserta: asi point_index queda
+        // siempre consecutivo y sin huecos.
+        jdbc.update("DELETE FROM blueprint_points WHERE author = ? AND name = ?", author, name);
+        insertPoints(author, name, points);
+    }
+
+    @Override
+    @Transactional
+    public void deleteBlueprint(String author, String name) throws BlueprintNotFoundException {
+        int deleted = jdbc.update("DELETE FROM blueprints WHERE author = ? AND name = ?", author, name);
+        if (deleted == 0) {
+            throw new BlueprintNotFoundException("Blueprint not found: %s/%s".formatted(author, name));
+        }
+        // Los puntos caen por la restriccion ON DELETE CASCADE del esquema.
+    }
+
     // ---------- utilidades internas ----------
 
     private boolean exists(String author, String name) {

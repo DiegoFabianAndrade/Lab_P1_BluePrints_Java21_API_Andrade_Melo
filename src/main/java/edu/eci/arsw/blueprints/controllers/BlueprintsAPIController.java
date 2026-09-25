@@ -2,6 +2,7 @@ package edu.eci.arsw.blueprints.controllers;
 
 import edu.eci.arsw.blueprints.dto.ApiResponse;
 import edu.eci.arsw.blueprints.dto.NewBlueprintRequest;
+import edu.eci.arsw.blueprints.dto.UpdateBlueprintRequest;
 import edu.eci.arsw.blueprints.model.Blueprint;
 import edu.eci.arsw.blueprints.model.Point;
 import edu.eci.arsw.blueprints.persistence.BlueprintNotFoundException;
@@ -79,6 +80,37 @@ public class BlueprintsAPIController {
         Blueprint bp = new Blueprint(req.author(), req.name(), req.points());
         services.addNewBlueprint(bp);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(bp));
+    }
+
+    @PutMapping("/{author}/{bpname}")
+    @PreAuthorize("hasAuthority('SCOPE_blueprints.write')")
+    @Operation(summary = "Reemplazar los puntos de un plano", description = "Sustituye la secuencia completa de puntos de un plano existente")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Plano actualizado exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Datos invalidos"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "No autorizado"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Plano no encontrado")
+    })
+    public ResponseEntity<ApiResponse<Blueprint>> update(@PathVariable String author, @PathVariable String bpname,
+                                                        @Valid @RequestBody UpdateBlueprintRequest req)
+            throws BlueprintNotFoundException {
+        services.updatePoints(author, bpname, req.points());
+        Blueprint updated = services.getBlueprint(author, bpname);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.accepted(updated));
+    }
+
+    @DeleteMapping("/{author}/{bpname}")
+    @PreAuthorize("hasAuthority('SCOPE_blueprints.write')")
+    @Operation(summary = "Eliminar un plano", description = "Borra un plano y todos sus puntos")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Plano eliminado exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "No autorizado"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Plano no encontrado")
+    })
+    public ResponseEntity<Void> delete(@PathVariable String author, @PathVariable String bpname)
+            throws BlueprintNotFoundException {
+        services.deleteBlueprint(author, bpname);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{author}/{bpname}/points")
