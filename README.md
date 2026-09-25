@@ -1,7 +1,7 @@
-# Laboratorio 3 — REST API Blueprints (Parte 1 y Parte 2)
+# Laboratorio Blueprints — REST API (Partes 1 y 2) y Cliente React (Parte 5)
 
 **Arquitecturas de Software (ARSW) — Escuela Colombiana de Ingeniería Julio Garavito**  
-Java 21 · Spring Boot 3.3.9 · PostgreSQL · Spring Security (OAuth2 / JWT) · springdoc-openapi
+Java 21 · Spring Boot 3.3.9 · PostgreSQL · Spring Security (OAuth2 / JWT) · springdoc-openapi · React 18 + Vite + Redux Toolkit
 
 Autores: **Diego Fabián Andrade** · **Juan Diego Melo**
 
@@ -26,10 +26,12 @@ API REST para gestionar planos arquitectónicos (*blueprints*): cada plano cuent
 ### Opción A — Docker (Recomendada)
 
 ```bash
-docker compose up -d
+docker compose up -d db
 ```
 
 Levanta el contenedor PostgreSQL 16 con usuario `blueprints`, contraseña `blueprints` y base `blueprints` en el puerto `5432`.
+
+> Para levantar el stack completo (base de datos + API + cliente React) ver la sección [Cliente React (Parte 5)](#-cliente-react-parte-5).
 
 Para iniciar la aplicación:
 
@@ -138,6 +140,8 @@ Ruta base: **`/api/v1/blueprints`**
 | `GET` | `/api/v1/blueprints/{author}/{name}` | `blueprints.read` | Obtener un plano específico | `200` |
 | `POST` | `/api/v1/blueprints` | `blueprints.write` | Registrar un nuevo plano | `201` |
 | `PUT` | `/api/v1/blueprints/{author}/{name}/points` | `blueprints.write` | Agregar un punto al final del plano | `202` |
+| `PUT` | `/api/v1/blueprints/{author}/{name}` | `blueprints.write` | Reemplazar la secuencia completa de puntos | `202` |
+| `DELETE` | `/api/v1/blueprints/{author}/{name}` | `blueprints.write` | Eliminar un plano y sus puntos | `204` |
 
 ---
 
@@ -184,7 +188,8 @@ src/main/java/edu/eci/arsw/blueprints
   ├── controllers/   BlueprintsAPIController, GlobalExceptionHandler
   ├── auth/          AuthController
   ├── security/      SecurityConfig, MethodSecurityConfig, JwtKeyProvider, InMemoryUserService, RsaKeyProperties
-  └── config/        OpenApiConfig
+  └── config/        OpenApiConfig, CorsConfig
+frontend/              Cliente React (ver frontend/README.md)
 ```
 
 ---
@@ -208,10 +213,11 @@ src/main/java/edu/eci/arsw/blueprints
 |---|---|:---:|
 | `BlueprintsSmokeTest` | Carga del contexto Spring | No |
 | `AuthControllerTest` | Autenticación y emisión de JWT en `/auth/login` | No |
-| `BlueprintsAPIControllerTest` | Seguridad por scopes, MockMvc y contratos HTTP | No |
+| `BlueprintsAPIControllerTest` | Seguridad por scopes, MockMvc, contratos HTTP, `PUT`/`DELETE` y preflight CORS | No |
 | `FiltersTest` | Lógica unitaria de filtros de redundancia y submuestreo | No |
 | `BlueprintsServicesFilterTest` | Integración de filtros por perfiles Spring | No |
 | `PostgresBlueprintPersistenceTest` | Persistencia real en PostgreSQL | **Sí** |
+| `frontend/tests/*` (Vitest) | 45 pruebas del cliente React: slices, canvas, formulario, página, servicios, ruta protegida | No |
 
 ---
 
@@ -225,3 +231,52 @@ src/main/java/edu/eci/arsw/blueprints
 | 4. Documentación OpenAPI / Swagger | `OpenApiConfig`, esquemas y anotaciones `@Operation` |
 | 5. Filtros de Blueprints | `IdentityFilter`, `RedundancyFilter`, `UndersamplingFilter`, perfiles Spring |
 | 6. Seguridad JWT / OAuth 2.0 | `SecurityConfig`, `JwtKeyProvider`, `AuthController`, `@PreAuthorize` por scopes |
+| 7. Cliente React (Parte 5) | `frontend/`, `CorsConfig`, endpoints `PUT`/`DELETE`, workflows `frontend-ci.yml` y `backend-ci.yml` |
+
+---
+
+## ⚛️ Cliente React (Parte 5)
+
+La carpeta [`frontend/`](./frontend/README.md) contiene la SPA en **React + Vite** con **Redux Toolkit**, **Axios** (interceptores JWT), **React Router** y pruebas con **Vitest + Testing Library**. Consume esta misma API.
+
+### Arrancar en desarrollo
+
+```bash
+# Terminal 1: API (con Postgres en Docker o con el perfil inmemory)
+docker compose up -d db
+./mvnw spring-boot:run
+
+# Terminal 2: cliente
+cd frontend
+npm install
+cp .env.example .env
+npm run dev          # http://localhost:5173
+```
+
+Inicia sesión con `student / student123` para crear planos, dibujar puntos en el lienzo o eliminar planos. Con `VITE_USE_MOCK=true` en `frontend/.env` el cliente funciona sin backend.
+
+### Stack completo con Docker
+
+```bash
+docker compose up -d --build
+```
+
+| Servicio | URL |
+|---|---|
+| Cliente React (nginx) | http://localhost:5173 |
+| API + Swagger | http://localhost:8080/swagger-ui.html |
+| PostgreSQL | localhost:5432 |
+
+### Cambios en el backend para la Parte 5
+
+- **CORS** (`config/CorsConfig.java`): permite `http://localhost:5173` y `http://localhost:4173`; configurable con `blueprints.cors.allowed-origins` (o la variable `BLUEPRINTS_CORS_ALLOWED_ORIGINS`).
+- **`PUT /api/v1/blueprints/{author}/{name}`** reemplaza la secuencia de puntos (`202`).
+- **`DELETE /api/v1/blueprints/{author}/{name}`** elimina el plano y sus puntos (`204`).
+- Ambos exigen el scope `blueprints.write` y están cubiertos por `BlueprintsAPIControllerTest`.
+
+### CI
+
+| Workflow | Disparador | Pasos |
+|---|---|---|
+| `backend-ci.yml` | cambios fuera de `frontend/` | `./mvnw -B verify` con Java 21 |
+| `frontend-ci.yml` | cambios en `frontend/` | `npm ci` → Prettier → ESLint → Vitest → `vite build` |

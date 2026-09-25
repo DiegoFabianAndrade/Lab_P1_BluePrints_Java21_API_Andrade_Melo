@@ -1,12 +1,18 @@
-# Base de datos PostgreSQL para el laboratorio de Blueprints.
+# Stack completo del laboratorio de Blueprints: base de datos, API y cliente React.
 #
-# Levantar:  docker compose up -d
-# Detener:   docker compose down
-# Borrar todo (incluidos los datos):  docker compose down -v
+# Solo la base de datos (uso habitual en desarrollo, con la API y Vite en local):
+#   docker compose up -d db
 #
-# La aplicacion crea las tablas y carga los datos de ejemplo por si misma al
-# arrancar (schema.sql y data.sql), de modo que este contenedor solo necesita
-# ofrecer una base de datos vacia.
+# Stack completo (Postgres + API + cliente React servido por nginx):
+#   docker compose up -d --build
+#   Cliente:  http://localhost:5173
+#   API:      http://localhost:8080  (Swagger en /swagger-ui.html)
+#
+# Detener:                       docker compose down
+# Borrar todo, incluidos datos:  docker compose down -v
+#
+# La API crea las tablas y carga los datos de ejemplo por si misma al arrancar
+# (schema.sql y data.sql), asi que la base de datos solo necesita existir vacia.
 
 services:
   db:
@@ -26,6 +32,39 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    build: .
+    container_name: blueprints-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: blueprints
+      DB_USER: blueprints
+      DB_PASSWORD: blueprints
+      # Origenes desde los que el navegador consumira la API.
+      BLUEPRINTS_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:4173
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # El navegador del usuario es quien llama a la API, por eso la URL
+        # apunta al puerto publicado en el host y no al nombre del servicio.
+        VITE_API_BASE_URL: http://localhost:8080
+        VITE_USE_MOCK: "false"
+    container_name: blueprints-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
 
 volumes:
   blueprints-data:

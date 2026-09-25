@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+package-lock.json
+# Documentos entregados por el profesor: se conservan tal cual.
+ENUNCIADO.md
+DEFINICIONES.md

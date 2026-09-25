@@ -1,0 +1,30 @@
+name: backend-ci
+
+on:
+  push:
+    paths-ignore:
+      - 'frontend/**'
+      - 'docs/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'frontend/**'
+      - 'docs/**'
+      - '**.md'
+
+jobs:
+  verify:
+    name: mvn verify (Java 21)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      # Las pruebas contra PostgreSQL se omiten solas cuando no hay base de datos.
+      - name: Compilar y probar
+        run: ./mvnw -B verify
