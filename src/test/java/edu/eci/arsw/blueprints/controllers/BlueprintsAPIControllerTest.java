@@ -2,6 +2,7 @@ package edu.eci.arsw.blueprints.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.eci.arsw.blueprints.dto.NewBlueprintRequest;
+import edu.eci.arsw.blueprints.dto.UpdateBlueprintRequest;
 import edu.eci.arsw.blueprints.model.Point;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import java.util.List;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.hasSize;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -143,5 +145,118 @@ class BlueprintsAPIControllerTest {
                         .content(objectMapper.writeValueAsString(point)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(404));
+    }
+
+    // ---------- Parte 5: PUT y DELETE usados por el cliente React ----------
+
+    @Test
+    void shouldReplacePointsWithWriteScope() throws Exception {
+        NewBlueprintRequest create = new NewBlueprintRequest("react", "replace_me",
+                List.of(new Point(1, 1), new Point(2, 2)));
+        mockMvc.perform(post("/api/v1/blueprints")
+                        .with(jwt().authorities(WRITE_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(create)))
+                .andExpect(status().isCreated());
+
+        UpdateBlueprintRequest update = new UpdateBlueprintRequest(
+                List.of(new Point(0, 0), new Point(10, 10), new Point(20, 0)));
+
+        mockMvc.perform(put("/api/v1/blueprints/react/replace_me")
+                        .with(jwt().authorities(WRITE_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.code").value(202))
+                .andExpect(jsonPath("$.data.points", hasSize(3)))
+                .andExpect(jsonPath("$.data.points[2].x").value(20));
+    }
+
+    @Test
+    void shouldReturn404WhenReplacingPointsOfUnknownBlueprint() throws Exception {
+        UpdateBlueprintRequest update = new UpdateBlueprintRequest(List.of(new Point(0, 0)));
+
+        mockMvc.perform(put("/api/v1/blueprints/ghost/nothing")
+                        .with(jwt().authorities(WRITE_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    void shouldReturn400WhenReplacingPointsWithoutBody() throws Exception {
+        mockMvc.perform(put("/api/v1/blueprints/john/house")
+                        .with(jwt().authorities(WRITE_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void shouldReturn403WhenReplacingPointsWithReadOnlyScope() throws Exception {
+        UpdateBlueprintRequest update = new UpdateBlueprintRequest(List.of(new Point(0, 0)));
+
+        mockMvc.perform(put("/api/v1/blueprints/john/house")
+                        .with(jwt().authorities(READ_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldDeleteBlueprintWithWriteScope() throws Exception {
+        NewBlueprintRequest create = new NewBlueprintRequest("react", "delete_me",
+                List.of(new Point(1, 1)));
+        mockMvc.perform(post("/api/v1/blueprints")
+                        .with(jwt().authorities(WRITE_SCOPE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(create)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/v1/blueprints/react/delete_me")
+                        .with(jwt().authorities(WRITE_SCOPE)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/blueprints/react/delete_me")
+                        .with(jwt().authorities(READ_SCOPE)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturn404WhenDeletingUnknownBlueprint() throws Exception {
+        mockMvc.perform(delete("/api/v1/blueprints/ghost/nothing")
+                        .with(jwt().authorities(WRITE_SCOPE)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    void shouldReturn403WhenDeletingWithReadOnlyScope() throws Exception {
+        mockMvc.perform(delete("/api/v1/blueprints/john/house")
+                        .with(jwt().authorities(READ_SCOPE)))
+                .andExpect(status().isForbidden());
+    }
+
+    // ---------- Parte 5: CORS para el cliente React ----------
+
+    @Test
+    void shouldAnswerCorsPreflightForReactDevServer() throws Exception {
+        mockMvc.perform(options("/api/v1/blueprints")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS"));
+    }
+
+    @Test
+    void shouldRejectCorsPreflightFromUnknownOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/blueprints")
+                        .header("Origin", "http://evil.example")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isForbidden());
     }
 }

@@ -26,11 +26,7 @@ function computeTransform(points, width, height) {
   const usableW = width - PADDING * 2
   const usableH = height - PADDING * 2
 
-  const scale = Math.min(
-    12,
-    spanX > 0 ? usableW / spanX : 12,
-    spanY > 0 ? usableH / spanY : 12,
-  )
+  const scale = Math.min(12, spanX > 0 ? usableW / spanX : 12, spanY > 0 ? usableH / spanY : 12)
 
   // Centra el dibujo dentro del area util.
   const dx = PADDING + (usableW - spanX * scale) / 2 - minX * scale
@@ -112,7 +108,10 @@ export default function BlueprintCanvas({
 
     drawPolyline(points, '#93c5fd', '#fbbf24', false)
     // El borrador arranca en el ultimo punto guardado para que la linea sea continua.
-    const draftPath = points.length && draftPoints.length ? [points[points.length - 1], ...draftPoints] : draftPoints
+    const draftPath =
+      points.length && draftPoints.length
+        ? [points[points.length - 1], ...draftPoints]
+        : draftPoints
     drawPolyline(draftPath, '#34d399', '#34d399', true)
   }, [points, draftPoints, width, height, toCanvas])
 

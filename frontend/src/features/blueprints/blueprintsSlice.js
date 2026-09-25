@@ -4,13 +4,15 @@ import service from '../../services/blueprintsService.js'
 /** Traduce cualquier error a un texto plano apto para el estado de Redux. */
 const asMessage = (error) => error?.message || 'Error inesperado'
 
-const withRejectValue = (fn) => async (arg, { rejectWithValue }) => {
-  try {
-    return await fn(arg)
-  } catch (error) {
-    return rejectWithValue(asMessage(error))
+const withRejectValue =
+  (fn) =>
+  async (arg, { rejectWithValue }) => {
+    try {
+      return await fn(arg)
+    } catch (error) {
+      return rejectWithValue(asMessage(error))
+    }
   }
-}
 
 export const fetchAll = createAsyncThunk(
   'blueprints/fetchAll',

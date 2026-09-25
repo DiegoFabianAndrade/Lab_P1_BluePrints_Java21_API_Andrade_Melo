@@ -96,7 +96,9 @@ export default function BlueprintsPage() {
       <ErrorBanner
         message={errors.current}
         onRetry={
-          current ? () => dispatch(fetchBlueprint({ author: current.author, name: current.name })) : undefined
+          current
+            ? () => dispatch(fetchBlueprint({ author: current.author, name: current.name }))
+            : undefined
         }
       />
       <ErrorBanner message={errors.mutation} />
@@ -175,7 +177,9 @@ export default function BlueprintsPage() {
                 onClick={saveDraft}
                 disabled={!draftPoints.length || loading.mutation === 'loading'}
               >
-                {loading.mutation === 'loading' ? 'Guardando...' : `Guardar (${draftPoints.length})`}
+                {loading.mutation === 'loading'
+                  ? 'Guardando...'
+                  : `Guardar (${draftPoints.length})`}
               </button>
               <button
                 className="btn ghost"

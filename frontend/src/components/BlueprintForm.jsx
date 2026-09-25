@@ -83,7 +83,11 @@ export default function BlueprintForm({ onSubmit, disabled, initialPoints }) {
           onChange={(e) => setPointsJSON(e.target.value)}
         />
       </div>
-      {error && <p role="alert" className="error-text">{error}</p>}
+      {error && (
+        <p role="alert" className="error-text">
+          {error}
+        </p>
+      )}
       <div className="field">
         <button className="btn primary" type="submit" disabled={disabled}>
           Guardar

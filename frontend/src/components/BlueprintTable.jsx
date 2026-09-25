@@ -22,7 +22,10 @@ export default function BlueprintTable({ items = [], onOpen, onDelete, currentNa
         </thead>
         <tbody>
           {items.map((bp) => (
-            <tr key={`${bp.author}/${bp.name}`} className={bp.name === currentName ? 'row-active' : undefined}>
+            <tr
+              key={`${bp.author}/${bp.name}`}
+              className={bp.name === currentName ? 'row-active' : undefined}
+            >
               <td>{bp.name}</td>
               <td className="right">{bp.points?.length || 0}</td>
               <td className="actions">
