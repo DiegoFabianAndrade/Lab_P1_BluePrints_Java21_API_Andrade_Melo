@@ -109,6 +109,33 @@ const slice = createSlice({
     clearErrors(state) {
       state.error = { all: null, byAuthor: null, current: null, mutation: null }
     },
+    receiveRealtimeUpdate(state, action) {
+      const { author, name, points } = action.payload || {}
+      if (!points || !points.length) return
+
+      const appendPoints = (bp) => {
+        if (!bp) return
+        const existing = bp.points ? [...bp.points] : []
+        for (const p of points) {
+          const pt = { x: Number(p.x), y: Number(p.y) }
+          const last = existing[existing.length - 1]
+          if (!last || last.x !== pt.x || last.y !== pt.y) {
+            existing.push(pt)
+          }
+        }
+        bp.points = existing
+      }
+
+      if (state.current && state.current.author === author && state.current.name === name) {
+        appendPoints(state.current)
+      }
+      if (state.byAuthor[author]) {
+        const bpInAuthor = state.byAuthor[author].find((b) => b.name === name)
+        if (bpInAuthor) appendPoints(bpInAuthor)
+      }
+      const bpInAll = state.all.find((b) => b.author === author && b.name === name)
+      if (bpInAll) appendPoints(bpInAll)
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -233,6 +260,7 @@ export const {
   addDraftPoint,
   clearDraftPoints,
   clearErrors,
+  receiveRealtimeUpdate,
 } = slice.actions
 
 // ---------------------------------------------------------------------------

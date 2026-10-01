@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import BlueprintCanvas from '../components/BlueprintCanvas.jsx'
@@ -14,6 +14,7 @@ import {
   fetchAll,
   fetchBlueprint,
   fetchByAuthor,
+  receiveRealtimeUpdate,
   selectAuthorBlueprints,
   selectCurrent,
   selectCurrentName,
@@ -25,7 +26,13 @@ import {
   selectAuthor as selectAuthorAction,
   updatePoints,
 } from '../features/blueprints/blueprintsSlice.js'
+import { createSocket } from '../lib/socketIoClient.js'
+import { createStompClient, subscribeBlueprint } from '../lib/stompClient.js'
 import { USE_MOCK } from '../services/blueprintsService.js'
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080'
+const STOMP_BASE = import.meta.env.VITE_STOMP_BASE ?? API_BASE
+const IO_BASE = import.meta.env.VITE_IO_BASE ?? 'http://localhost:3001'
 
 export default function BlueprintsPage() {
   const dispatch = useDispatch()
@@ -42,11 +49,105 @@ export default function BlueprintsPage() {
 
   const [authorInput, setAuthorInput] = useState('')
   const [drawMode, setDrawMode] = useState(false)
+  const [tech, setTech] = useState('stomp')
+  const [rtStatus, setRtStatus] = useState('disconnected')
 
-  // Catalogo general: alimenta el top 5 y sirve para saber que autores existen.
+  const stompRef = useRef(null)
+  const socketRef = useRef(null)
+  const unsubRef = useRef(null)
+
   useEffect(() => {
     dispatch(fetchAll())
   }, [dispatch])
+
+  // Gestion del ciclo de vida de la conexion de tiempo real (STOMP / Socket.IO)
+  useEffect(() => {
+    unsubRef.current?.()
+    unsubRef.current = null
+
+    if (stompRef.current) {
+      try {
+        stompRef.current.deactivate()
+      } catch (e) {
+        console.error('Error closing STOMP connection', e)
+      }
+      stompRef.current = null
+    }
+
+    if (socketRef.current) {
+      try {
+        socketRef.current.disconnect()
+      } catch (e) {
+        console.error('Error closing Socket.IO connection', e)
+      }
+      socketRef.current = null
+    }
+
+    if (!current || tech === 'none') {
+      setRtStatus('disconnected')
+      return
+    }
+
+    if (tech === 'stomp') {
+      setRtStatus('connecting')
+      const client = createStompClient(STOMP_BASE)
+      stompRef.current = client
+
+      client.onConnect = () => {
+        setRtStatus('connected')
+        unsubRef.current = subscribeBlueprint(client, current.author, current.name, (upd) => {
+          if (upd?.points) {
+            dispatch(
+              receiveRealtimeUpdate({
+                author: current.author,
+                name: current.name,
+                points: upd.points,
+              }),
+            )
+          }
+        })
+      }
+
+      client.onStompError = () => setRtStatus('error')
+      client.onWebSocketClose = () => setRtStatus('disconnected')
+
+      client.activate()
+    } else if (tech === 'socketio') {
+      setRtStatus('connecting')
+      const socket = createSocket(IO_BASE)
+      socketRef.current = socket
+
+      socket.on('connect', () => {
+        setRtStatus('connected')
+        const room = `blueprints.${current.author}.${current.name}`
+        socket.emit('join-room', room)
+      })
+
+      socket.on('blueprint-update', (upd) => {
+        if (upd?.points) {
+          dispatch(
+            receiveRealtimeUpdate({
+              author: current.author,
+              name: current.name,
+              points: upd.points,
+            }),
+          )
+        }
+      })
+
+      socket.on('connect_error', () => setRtStatus('error'))
+      socket.on('disconnect', () => setRtStatus('disconnected'))
+    }
+
+    return () => {
+      unsubRef.current?.()
+      unsubRef.current = null
+      stompRef.current?.deactivate()
+      stompRef.current = null
+      socketRef.current?.disconnect()
+      socketRef.current = null
+    }
+  }, [tech, current?.author, current?.name, dispatch])
 
   const getBlueprints = () => {
     const author = authorInput.trim()
@@ -65,10 +166,39 @@ export default function BlueprintsPage() {
   }
 
   const handleCanvasClick = (point) => {
-    dispatch(addDraftPoint(point))
+    if (tech === 'stomp' && stompRef.current?.connected && current) {
+      stompRef.current.publish({
+        destination: '/app/draw',
+        body: JSON.stringify({ author: current.author, name: current.name, point }),
+      })
+      dispatch(
+        receiveRealtimeUpdate({
+          author: current.author,
+          name: current.name,
+          points: [point],
+        }),
+      )
+    } else if (tech === 'socketio' && socketRef.current?.connected && current) {
+      const room = `blueprints.${current.author}.${current.name}`
+      socketRef.current.emit('draw-event', {
+        room,
+        author: current.author,
+        name: current.name,
+        point,
+      })
+      dispatch(
+        receiveRealtimeUpdate({
+          author: current.author,
+          name: current.name,
+          points: [point],
+        }),
+      )
+    } else {
+      dispatch(addDraftPoint(point))
+    }
   }
 
-  /** Guarda el borrador: un punto por peticion si hay uno, o el trazo completo. */
+  /** Guarda el borrador manual en caso de modo desconectado. */
   const saveDraft = () => {
     if (!current || !draftPoints.length) return
     if (draftPoints.length === 1) {
@@ -156,6 +286,32 @@ export default function BlueprintsPage() {
               />
             </div>
 
+            <div className="row wrap" style={{ alignItems: 'center', marginBottom: 12, gap: 10 }}>
+              <label htmlFor="rt-tech-select" style={{ fontSize: '0.88rem', color: 'var(--muted)' }}>
+                Tiempo Real:
+              </label>
+              <select
+                id="rt-tech-select"
+                className="input"
+                style={{ width: 'auto', padding: '6px 10px', fontSize: '0.85rem' }}
+                value={tech}
+                onChange={(e) => setTech(e.target.value)}
+              >
+                <option value="stomp">STOMP (Spring WebSocket)</option>
+                <option value="socketio">Socket.IO (Node.js)</option>
+                <option value="none">Desactivado (Manual)</option>
+              </select>
+
+              {tech !== 'none' && current && (
+                <span className={`badge ${rtStatus}`}>
+                  {rtStatus === 'connected' && `Conectado (${tech === 'stomp' ? `/topic/blueprints.${current.author}.${current.name}` : `sala ${current.author}.${current.name}`})`}
+                  {rtStatus === 'connecting' && 'Conectando...'}
+                  {rtStatus === 'disconnected' && 'Desconectado'}
+                  {rtStatus === 'error' && 'Error de conexion'}
+                </span>
+              )}
+            </div>
+
             {loading.current === 'loading' && <p className="muted">Cargando plano...</p>}
 
             <BlueprintCanvas
@@ -172,28 +328,34 @@ export default function BlueprintsPage() {
               >
                 {drawMode ? 'Dibujando: click en el lienzo' : 'Dibujar puntos'}
               </button>
-              <button
-                className="btn primary"
-                onClick={saveDraft}
-                disabled={!draftPoints.length || loading.mutation === 'loading'}
-              >
-                {loading.mutation === 'loading'
-                  ? 'Guardando...'
-                  : `Guardar (${draftPoints.length})`}
-              </button>
-              <button
-                className="btn ghost"
-                onClick={() => dispatch(clearDraftPoints())}
-                disabled={!draftPoints.length}
-              >
-                Descartar
-              </button>
+
+              {tech === 'none' && (
+                <>
+                  <button
+                    className="btn primary"
+                    onClick={saveDraft}
+                    disabled={!draftPoints.length || loading.mutation === 'loading'}
+                  >
+                    {loading.mutation === 'loading'
+                      ? 'Guardando...'
+                      : `Guardar (${draftPoints.length})`}
+                  </button>
+                  <button
+                    className="btn ghost"
+                    onClick={() => dispatch(clearDraftPoints())}
+                    disabled={!draftPoints.length}
+                  >
+                    Descartar
+                  </button>
+                </>
+              )}
             </div>
 
             {current && (
-              <p className="muted">
-                Puntos guardados: {current.points.length}
-                {draftPoints.length ? ` + ${draftPoints.length} sin guardar` : ''}
+              <p className="muted" style={{ marginTop: 8 }}>
+                Puntos guardados: {current.points?.length || 0}
+                {tech === 'none' && draftPoints.length ? ` + ${draftPoints.length} sin guardar` : ''}
+                {tech !== 'none' && ' (colaboracion en tiempo real activa)'}
               </p>
             )}
             {!canWrite && (

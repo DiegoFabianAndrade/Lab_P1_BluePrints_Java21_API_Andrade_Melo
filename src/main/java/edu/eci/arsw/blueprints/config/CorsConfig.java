@@ -45,6 +45,7 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         source.registerCorsConfiguration("/auth/**", config);
+        source.registerCorsConfiguration("/ws-blueprints/**", config);
         return source;
     }
 }
