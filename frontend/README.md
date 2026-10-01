@@ -26,10 +26,21 @@ Abre `http://localhost:5173`.
 
 | Variable            | Valor por defecto       | Descripción                                                               |
 | ------------------- | ----------------------- | ------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL` | `http://localhost:8080` | Raíz del backend. El cliente agrega `/auth/login` y `/api/v1/blueprints`. |
+| `VITE_API_BASE_URL` | `http://localhost:8080` | Raíz del backend REST (`/auth/login` y `/api/v1/blueprints`).             |
+| `VITE_STOMP_BASE`   | `http://localhost:8080` | Endpoint base del broker WebSocket / STOMP (`/ws-blueprints`).            |
+| `VITE_IO_BASE`      | `http://localhost:3001` | URL base del servidor Socket.IO (en caso de usar backend Node).           |
 | `VITE_USE_MOCK`     | `false`                 | `true` usa `apimock` (memoria, sin backend); `false` usa `apiclient`.     |
 
 Las variables `VITE_*` se leen en tiempo de build, así que después de cambiar el `.env` hay que reiniciar `npm run dev`.
+
+### Tiempo Real (STOMP & Socket.IO)
+
+El cliente incluye un selector de tecnología de tiempo real en la vista principal:
+- **STOMP (Spring Boot WebSocket):** Conecta a `/ws-blueprints`, se suscribe a `/topic/blueprints.{author}.{name}` y publica puntos a `/app/draw` con payload `{ author, name, point: { x, y } }`.
+- **Socket.IO (Node.js):** Conecta vía websocket, emite `join-room` a la sala `blueprints.{author}.{name}` y emite eventos `draw-event`.
+- **Desactivado (Manual):** Modo borrador local con guardado manual (`addPoint` / `updatePoints`).
+
+Al abrir dos pestañas sobre el mismo plano con STOMP activado, cualquier clic en el lienzo se refleja instantáneamente en ambas pantallas.
 
 ### Usuarios del backend
 

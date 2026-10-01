@@ -609,3 +609,111 @@ Content-Type: application/json
   }
 }
 ```
+
+---
+
+## 7. Evidencias de Colaboración en Tiempo Real (STOMP WebSockets) — Parte 4
+
+### 7.1 Handshake WebSocket y Conexión STOMP
+
+**Conexión HTTP Upgrade / WebSocket:**
+```http
+GET /ws-blueprints HTTP/1.1
+Host: localhost:8080
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+```
+
+**Respuesta 101 Switching Protocols:**
+```http
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+```
+
+**Frame STOMP CONNECT:**
+```
+CONNECT
+accept-version:1.2,1.1,1.0
+heart-beat:10000,10000
+
+^@
+```
+
+**Frame STOMP CONNECTED:**
+```
+CONNECTED
+version:1.2
+heart-beat:10000,10000
+
+^@
+```
+
+---
+
+### 7.2 Suscripción al Tópico del Plano
+
+**Frame STOMP SUBSCRIBE:**
+```
+SUBSCRIBE
+id:sub-0
+destination:/topic/blueprints.john.house
+
+^@
+```
+
+---
+
+### 7.3 Publicación de Punto (`/app/draw`) y Difusión (`/topic/blueprints.*`)
+
+**Cliente A — Frame STOMP SEND:**
+```
+SEND
+destination:/app/draw
+content-type:application/json
+
+{"author":"john","name":"house","point":{"x":150,"y":220}}
+^@
+```
+
+**Cliente B (y Cliente A) — Frame STOMP MESSAGE Recibido:**
+```
+MESSAGE
+destination:/topic/blueprints.john.house
+content-type:application/json
+subscription:sub-0
+message-id:msg-001
+
+{"author":"john","name":"house","points":[{"x":150,"y":220}]}
+^@
+```
+
+---
+
+### 7.4 Resultados de Pruebas Automatizadas
+
+#### Backend (Spring Boot / JUnit 5 / Surefire)
+```
+[INFO] Running edu.eci.arsw.blueprints.controllers.BlueprintRTControllerTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.125 s
+[INFO] Results:
+[INFO] Tests run: 46, Failures: 0, Errors: 0, Skipped: 8
+[INFO] BUILD SUCCESS
+```
+
+#### Frontend (React / Vitest)
+```
+ ✓ tests/authSlice.test.js (4 tests)
+ ✓ tests/blueprintsSlice.test.jsx (13 tests)
+ ✓ tests/realtime.test.js (7 tests)
+ ✓ tests/BlueprintCanvas.test.jsx (5 tests)
+ ✓ tests/BlueprintForm.test.jsx (5 tests)
+ ✓ tests/PrivateRoute.test.jsx (2 tests)
+ ✓ tests/BlueprintsPage.test.jsx (7 tests)
+ ✓ tests/services.test.js (9 tests)
+
+ Test Files  8 passed (8)
+      Tests  52 passed (52)
+```

@@ -217,7 +217,8 @@ frontend/              Cliente React (ver frontend/README.md)
 | `FiltersTest` | Lógica unitaria de filtros de redundancia y submuestreo | No |
 | `BlueprintsServicesFilterTest` | Integración de filtros por perfiles Spring | No |
 | `PostgresBlueprintPersistenceTest` | Persistencia real en PostgreSQL | **Sí** |
-| `frontend/tests/*` (Vitest) | 45 pruebas del cliente React: slices, canvas, formulario, página, servicios, ruta protegida | No |
+| `BlueprintRTControllerTest` | Manejo de eventos STOMP en `/app/draw` y difusión a `/topic/blueprints.*` | No |
+| `frontend/tests/*` (Vitest) | 52 pruebas del cliente React: slices, canvas, RT helpers, formulario, página, servicios, ruta protegida | No |
 
 ---
 
@@ -231,13 +232,52 @@ frontend/              Cliente React (ver frontend/README.md)
 | 4. Documentación OpenAPI / Swagger | `OpenApiConfig`, esquemas y anotaciones `@Operation` |
 | 5. Filtros de Blueprints | `IdentityFilter`, `RedundancyFilter`, `UndersamplingFilter`, perfiles Spring |
 | 6. Seguridad JWT / OAuth 2.0 | `SecurityConfig`, `JwtKeyProvider`, `AuthController`, `@PreAuthorize` por scopes |
-| 7. Cliente React (Parte 5) | `frontend/`, `CorsConfig`, endpoints `PUT`/`DELETE`, workflows `frontend-ci.yml` y `backend-ci.yml` |
+| 7. Cliente React (Parte 3/5) | `frontend/`, `CorsConfig`, endpoints `PUT`/`DELETE`, workflows `frontend-ci.yml` y `backend-ci.yml` |
+| 8. Colaboración en Tiempo Real (Parte 4) | `WebSocketConfig`, `BlueprintRTController`, `@MessageMapping("/draw")`, STOMP client y selector de tecnología RT |
 
 ---
 
-## ⚛️ Cliente React (Parte 5)
+## ⚡ Colaboración en Tiempo Real (Parte 4 — Sockets & STOMP)
 
-La carpeta [`frontend/`](./frontend/README.md) contiene la SPA en **React + Vite** con **Redux Toolkit**, **Axios** (interceptores JWT), **React Router** y pruebas con **Vitest + Testing Library**. Consume esta misma API.
+El sistema soporta edición colaborativa sobre planos arquitectónicos mediante **WebSockets y STOMP (Spring Boot)** o **Socket.IO (Node.js)**.
+
+```
+React Client (Vite)
+ ├─ HTTP (REST CRUD inicial) ───────────────> GET /api/v1/blueprints/{author}/{name}
+ └─ Tiempo Real (STOMP Broker):
+     ├─ Publicar clic: /app/draw ──────────> @MessageMapping("/draw")
+     └─ Suscripción: /topic/blueprints.* ──< Difusión a todos los clientes conectados
+```
+
+### Convenciones
+- **Canal / Tópico:** `/topic/blueprints.{author}.{name}`
+- **Destino de publicación:** `/app/draw`
+- **Payload de punto:** `{ "author": "juan", "name": "plano-1", "point": { "x": 120, "y": 95 } }`
+
+### Puesta en Marcha y Verificación Multi-Pestaña
+1. Iniciar backend: `./mvnw spring-boot:run` (expone REST en `8080` y WebSocket en `/ws-blueprints`).
+2. Iniciar cliente: `cd frontend && npm run dev` (abre `http://localhost:5173`).
+3. Abrir **dos pestañas** en el navegador en `http://localhost:5173`.
+4. En ambas pestañas, seleccionar la tecnología **STOMP (Spring WebSocket)** y cargar el mismo autor y plano (ej. `john / house`).
+5. Dibujar haciendo clic en el lienzo de una pestaña: los nuevos segmentos y puntos se replican inmediatamente en la otra pestaña en tiempo real.
+
+### Comparativa Técnica: Socket.IO vs STOMP sobre WebSockets
+
+| Criterio | STOMP (Spring Boot) | Socket.IO (Node.js) |
+|---|---|---|
+| **Protocolo** | Estándar sobre WebSocket (orientado a tramas de texto / pub-sub tipo JMS) | Protocolo propietario basado en eventos |
+| **Topología / Enrutamiento** | Tópicos y colas jerárquicas (`/topic/*`, `/queue/*`, `/app/*`) gestionados por un broker | Salas (*rooms*) y *namespaces* en memoria |
+| **Interoperabilidad** | Alta (clientes en JS, Python, Go, C# compatibles con brokers estándar como RabbitMQ o ActiveMQ) | Limitada al ecosistema y clientes compatibles con Socket.IO |
+| **Integración con Backend** | Nativa con el ciclo de vida de Spring (`@MessageMapping`, `SimpMessagingTemplate`, seguridad Spring) | Requiere servidor Node.js independiente |
+| **Manejo de Conexión** | Heartbeats a nivel de frame STOMP y reconexión configurable con `@stomp/stompjs` | Heartbeats automáticos y fallback automático a HTTP Long-Polling |
+
+> Las evidencias completas de transcripción HTTP, frames STOMP y pruebas unitarias se encuentran en el archivo [`docs/EVIDENCIAS.md`](./docs/EVIDENCIAS.md).
+
+---
+
+## ⚛️ Cliente React (Parte 3/5)
+
+La carpeta [`frontend/`](./frontend/README.md) contiene la SPA en **React + Vite** con **Redux Toolkit**, **Axios** (interceptores JWT), **React Router**, cliente **STOMP / Socket.IO** y pruebas con **Vitest + Testing Library**. Consume esta misma API.
 
 ### Arrancar en desarrollo
 
@@ -266,13 +306,6 @@ docker compose up -d --build
 | Cliente React (nginx) | http://localhost:5173 |
 | API + Swagger | http://localhost:8080/swagger-ui.html |
 | PostgreSQL | localhost:5432 |
-
-### Cambios en el backend para la Parte 5
-
-- **CORS** (`config/CorsConfig.java`): permite `http://localhost:5173` y `http://localhost:4173`; configurable con `blueprints.cors.allowed-origins` (o la variable `BLUEPRINTS_CORS_ALLOWED_ORIGINS`).
-- **`PUT /api/v1/blueprints/{author}/{name}`** reemplaza la secuencia de puntos (`202`).
-- **`DELETE /api/v1/blueprints/{author}/{name}`** elimina el plano y sus puntos (`204`).
-- Ambos exigen el scope `blueprints.write` y están cubiertos por `BlueprintsAPIControllerTest`.
 
 ### CI
 
